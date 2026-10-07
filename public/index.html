@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WattWise — Electricity Consumption AI Agent</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <span>WattWise</span>
+      </div>
+      <button class="sidebar-toggle" id="sidebarClose" aria-label="Close sidebar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="nav-item active" data-tab="chat">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>AI Chat</span>
+      </button>
+      <button class="nav-item" data-tab="calculator">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg>
+        <span>Calculator</span>
+      </button>
+      <button class="nav-item" data-tab="tips">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span>Saving Tips</span>
+      </button>
+      <button class="nav-item" data-tab="stats">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span>Stats</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="eco-badge">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>Carbon Aware Mode</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main-wrapper">
+    <!-- Top bar -->
+    <header class="topbar">
+      <button class="hamburger" id="sidebarOpen" aria-label="Open menu">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="topbar-title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <span id="pageTitle">AI Chat</span>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn-icon" id="clearChat" title="Clear conversation">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Content panels -->
+    <main class="content">
+
+      <!-- ─── CHAT TAB ─── -->
+      <section class="tab-panel active" id="panel-chat">
+        <div class="chat-container">
+          <div class="chat-messages" id="chatMessages">
+            <!-- Welcome message -->
+            <div class="message agent">
+              <div class="avatar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              </div>
+              <div class="bubble">
+                <p>⚡ Hi! I'm <strong>WattWise</strong>, your AI Electricity Consumption Awareness Agent.</p>
+                <p>I can help you:</p>
+                <ul>
+                  <li>Analyse your electricity usage and estimate bills</li>
+                  <li>Find energy-saving opportunities in your home</li>
+                  <li>Calculate appliance running costs</li>
+                  <li>Understand your carbon footprint</li>
+                  <li>Suggest smart energy upgrades</li>
+                </ul>
+                <p>Try asking: <em>"How much does my AC cost to run for 8 hours a day?"</em></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Suggested prompts -->
+          <div class="suggestions" id="suggestions">
+            <button class="chip" data-prompt="What are the top 5 appliances that consume the most electricity?">Top energy hogs 🔌</button>
+            <button class="chip" data-prompt="How do I reduce my electricity bill by 20%?">Reduce bill 20% 💰</button>
+            <button class="chip" data-prompt="Explain time-of-use electricity pricing and how I can benefit from it">Time-of-use pricing ⏰</button>
+            <button class="chip" data-prompt="Is solar energy worth it for a typical home?">Solar ROI ☀️</button>
+            <button class="chip" data-prompt="What is the carbon footprint of my electricity usage if I use 500 kWh per month?">Carbon footprint 🌱</button>
+          </div>
+
+          <!-- Input -->
+          <div class="chat-input-bar">
+            <textarea
+              id="chatInput"
+              placeholder="Ask WattWise anything about electricity…"
+              rows="1"
+              autocomplete="off"
+            ></textarea>
+            <button id="sendBtn" class="send-btn" disabled>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── CALCULATOR TAB ─── -->
+      <section class="tab-panel" id="panel-calculator">
+        <div class="calc-container">
+          <div class="section-header">
+            <h2>Electricity Cost Calculator</h2>
+            <p>Add your appliances to estimate monthly electricity costs</p>
+          </div>
+
+          <div class="calc-rate-row">
+            <label>Electricity Rate ($/kWh)</label>
+            <input type="number" id="rateInput" value="0.13" step="0.01" min="0.01" max="1" />
+          </div>
+
+          <div class="appliance-list" id="applianceList">
+            <!-- rows added dynamically -->
+          </div>
+
+          <button class="btn-add" id="addAppliance">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Appliance
+          </button>
+
+          <div class="calc-results hidden" id="calcResults">
+            <h3>Monthly Summary</h3>
+            <div class="results-grid">
+              <div class="result-card">
+                <span class="result-label">Total kWh / month</span>
+                <span class="result-value" id="resKwh">—</span>
+              </div>
+              <div class="result-card accent">
+                <span class="result-label">Monthly Cost</span>
+                <span class="result-value" id="resCost">—</span>
+              </div>
+              <div class="result-card">
+                <span class="result-label">Annual Cost</span>
+                <span class="result-value" id="resYear">—</span>
+              </div>
+              <div class="result-card green">
+                <span class="result-label">CO₂ / month (kg)</span>
+                <span class="result-value" id="resCo2">—</span>
+              </div>
+            </div>
+            <div class="appliance-breakdown" id="applianceBreakdown"></div>
+            <button class="btn-ask-agent" id="askAgentBtn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Ask WattWise to analyse this
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── TIPS TAB ─── -->
+      <section class="tab-panel" id="panel-tips">
+        <div class="tips-container">
+          <div class="section-header">
+            <h2>Energy Saving Tips</h2>
+            <p>AI-generated tips to help you reduce consumption today</p>
+          </div>
+          <button class="btn-refresh" id="refreshTips">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            Generate New Tips
+          </button>
+          <div class="tips-grid" id="tipsGrid">
+            <div class="tips-placeholder">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <p>Click "Generate New Tips" to get AI-powered saving tips</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─── STATS TAB ─── -->
+      <section class="tab-panel" id="panel-stats">
+        <div class="stats-container">
+          <div class="section-header">
+            <h2>Global Electricity Stats</h2>
+            <p>Average consumption benchmarks to compare against your usage</p>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon blue"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+              <div class="stat-info">
+                <span class="stat-value">877 kWh</span>
+                <span class="stat-label">US avg. household/month</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon amber"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></div>
+              <div class="stat-info">
+                <span class="stat-value">$0.13</span>
+                <span class="stat-label">US avg. rate per kWh</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon green"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+              <div class="stat-info">
+                <span class="stat-value">0.386 kg</span>
+                <span class="stat-label">CO₂ per kWh (US avg)</span>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon purple"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div>
+              <div class="stat-info">
+                <span class="stat-value">24,000 TWh</span>
+                <span class="stat-label">Global consumption/year</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="breakdown-section">
+            <h3>Typical Home Energy Breakdown</h3>
+            <div class="breakdown-bars">
+              <div class="bar-row">
+                <span class="bar-label">Heating & Cooling</span>
+                <div class="bar-track"><div class="bar-fill" style="width:47%;background:#f59e0b"></div></div>
+                <span class="bar-pct">47%</span>
+              </div>
+              <div class="bar-row">
+                <span class="bar-label">Water Heater</span>
+                <div class="bar-track"><div class="bar-fill" style="width:14%;background:#3b82f6"></div></div>
+                <span class="bar-pct">14%</span>
+              </div>
+              <div class="bar-row">
+                <span class="bar-label">Washer & Dryer</span>
+                <div class="bar-track"><div class="bar-fill" style="width:13%;background:#8b5cf6"></div></div>
+                <span class="bar-pct">13%</span>
+              </div>
+              <div class="bar-row">
+                <span class="bar-label">Lighting</span>
+                <div class="bar-track"><div class="bar-fill" style="width:12%;background:#10b981"></div></div>
+                <span class="bar-pct">12%</span>
+              </div>
+              <div class="bar-row">
+                <span class="bar-label">Refrigerator</span>
+                <div class="bar-track"><div class="bar-fill" style="width:8%;background:#ef4444"></div></div>
+                <span class="bar-pct">8%</span>
+              </div>
+              <div class="bar-row">
+                <span class="bar-label">Other</span>
+                <div class="bar-track"><div class="bar-fill" style="width:6%;background:#6b7280"></div></div>
+                <span class="bar-pct">6%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="savings-potential">
+            <h3>Savings Potential by Action</h3>
+            <div class="action-list">
+              <div class="action-item"><div class="action-bar" style="width:30%"></div><span>LED lighting switch</span><strong>up to 75% on lighting</strong></div>
+              <div class="action-item"><div class="action-bar" style="width:25%"></div><span>Smart thermostat</span><strong>10–12% heating, 15% cooling</strong></div>
+              <div class="action-item"><div class="action-bar" style="width:20%"></div><span>Seal air leaks</span><strong>up to 20% on HVAC</strong></div>
+              <div class="action-item"><div class="action-bar" style="width:15%"></div><span>Energy-efficient appliances</span><strong>10–50% per appliance</strong></div>
+              <div class="action-item"><div class="action-bar" style="width:10%"></div><span>Unplug standby devices</span><strong>5–10% overall</strong></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

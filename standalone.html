@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WattWise — Electricity Consumption AI Agent</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a; --border: #2e3347;
+      --text: #e8eaf6; --muted: #8892aa; --accent: #f59e0b; --accent2: #3b82f6;
+      --green: #10b981; --purple: #8b5cf6; --red: #ef4444;
+      --sidebar-w: 220px; --topbar-h: 56px;
+    }
+    html, body { height: 100%; font-family: -apple-system,"Segoe UI",system-ui,sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; overflow: hidden; }
+
+    /* Sidebar */
+    .sidebar { position:fixed; top:0; left:0; width:var(--sidebar-w); height:100%; background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; z-index:100; transition:transform .25s; }
+    .sidebar-header { display:flex; align-items:center; justify-content:space-between; padding:18px 16px; border-bottom:1px solid var(--border); }
+    .logo { display:flex; align-items:center; gap:10px; font-weight:700; font-size:16px; color:var(--accent); }
+    .sidebar-toggle { background:none; border:none; cursor:pointer; color:var(--muted); padding:4px; border-radius:6px; }
+    .sidebar-toggle:hover { background:var(--surface2); color:var(--text); }
+    .sidebar-nav { flex:1; padding:12px 10px; display:flex; flex-direction:column; gap:4px; }
+    .nav-item { display:flex; align-items:center; gap:10px; padding:10px 12px; background:none; border:none; cursor:pointer; color:var(--muted); font-size:13.5px; font-family:inherit; border-radius:8px; text-align:left; transition:all .15s; }
+    .nav-item:hover { background:var(--surface2); color:var(--text); }
+    .nav-item.active { background:rgba(245,158,11,.12); color:var(--accent); font-weight:600; }
+    .nav-item.active svg { stroke:var(--accent); }
+    .sidebar-footer { padding:14px 16px; border-top:1px solid var(--border); }
+    .eco-badge { display:flex; align-items:center; gap:8px; font-size:11.5px; color:var(--green); background:rgba(16,185,129,.1); padding:7px 10px; border-radius:20px; border:1px solid rgba(16,185,129,.25); }
+
+    /* Main */
+    .main-wrapper { margin-left:var(--sidebar-w); height:100%; display:flex; flex-direction:column; }
+    .topbar { height:var(--topbar-h); background:var(--surface); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:12px; padding:0 20px; flex-shrink:0; }
+    .hamburger { display:none; background:none; border:none; cursor:pointer; color:var(--muted); padding:6px; border-radius:6px; }
+    .topbar-title { display:flex; align-items:center; gap:8px; font-weight:600; font-size:15px; flex:1; }
+    .topbar-actions { display:flex; gap:8px; }
+    .btn-icon { background:none; border:none; cursor:pointer; color:var(--muted); padding:7px; border-radius:7px; }
+    .btn-icon:hover { background:var(--surface2); color:var(--text); }
+
+    /* Content */
+    .content { flex:1; overflow:hidden; position:relative; }
+    .tab-panel { display:none; height:100%; overflow-y:auto; }
+    .tab-panel.active { display:flex; flex-direction:column; }
+
+    /* Chat */
+    .chat-container { display:flex; flex-direction:column; height:100%; }
+    .chat-messages { flex:1; overflow-y:auto; padding:24px 20px 12px; display:flex; flex-direction:column; gap:16px; }
+    .chat-messages::-webkit-scrollbar { width:5px; }
+    .chat-messages::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+    .message { display:flex; gap:12px; max-width:820px; }
+    .message.user { flex-direction:row-reverse; align-self:flex-end; }
+    .message.agent { align-self:flex-start; }
+    .avatar { width:34px; height:34px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:rgba(245,158,11,.15); border:1px solid rgba(245,158,11,.3); color:var(--accent); }
+    .message.user .avatar { background:rgba(59,130,246,.15); border-color:rgba(59,130,246,.3); color:var(--accent2); }
+    .bubble { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:12px 16px; font-size:13.5px; line-height:1.65; max-width:640px; }
+    .bubble p+p { margin-top:6px; } .bubble ul { padding-left:18px; margin:6px 0; } .bubble li { margin:3px 0; }
+    .bubble strong { color:var(--accent); } .bubble em { color:var(--muted); }
+    .bubble code { background:var(--surface2); padding:1px 5px; border-radius:4px; font-family:monospace; font-size:12.5px; }
+    .bubble pre { background:var(--surface2); padding:10px; border-radius:8px; overflow-x:auto; margin:8px 0; }
+    .bubble h1,.bubble h2,.bubble h3 { color:var(--accent); margin:8px 0 4px; }
+    .message.user .bubble { background:rgba(59,130,246,.1); border-color:rgba(59,130,246,.25); }
+    .typing-indicator { display:flex; gap:5px; align-items:center; padding:4px 0; }
+    .typing-indicator span { width:7px; height:7px; border-radius:50%; background:var(--muted); animation:typing 1.2s infinite; }
+    .typing-indicator span:nth-child(2){animation-delay:.2s} .typing-indicator span:nth-child(3){animation-delay:.4s}
+    @keyframes typing{0%,80%,100%{transform:scale(1);opacity:.5}40%{transform:scale(1.3);opacity:1}}
+    .suggestions { display:flex; gap:8px; flex-wrap:wrap; padding:8px 20px 0; }
+    .chip { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:6px 14px; font-size:12.5px; cursor:pointer; color:var(--muted); font-family:inherit; transition:all .15s; }
+    .chip:hover { border-color:var(--accent); color:var(--accent); background:rgba(245,158,11,.06); }
+    .chat-input-bar { display:flex; align-items:flex-end; gap:10px; padding:14px 20px; border-top:1px solid var(--border); background:var(--surface); flex-shrink:0; }
+    .chat-input-bar textarea { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:10px 14px; color:var(--text); font-family:inherit; font-size:13.5px; resize:none; outline:none; max-height:140px; line-height:1.5; transition:border-color .15s; }
+    .chat-input-bar textarea:focus { border-color:var(--accent); }
+    .chat-input-bar textarea::placeholder { color:var(--muted); }
+    .send-btn { width:40px; height:40px; border-radius:10px; border:none; background:var(--accent); cursor:pointer; display:flex; align-items:center; justify-content:center; color:#000; flex-shrink:0; transition:opacity .15s; }
+    .send-btn:disabled { opacity:.35; cursor:not-allowed; } .send-btn:not(:disabled):hover { opacity:.85; }
+
+    /* API key modal */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); display:flex; align-items:center; justify-content:center; z-index:999; }
+    .modal-overlay.hidden { display:none; }
+    .modal { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:28px 28px 24px; max-width:440px; width:90%; }
+    .modal h2 { font-size:17px; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+    .modal p { color:var(--muted); font-size:13px; margin-bottom:18px; }
+    .modal input { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:10px 12px; color:var(--text); font-family:inherit; font-size:13.5px; outline:none; margin-bottom:14px; }
+    .modal input:focus { border-color:var(--accent); }
+    .modal-actions { display:flex; gap:10px; justify-content:flex-end; }
+    .btn-primary { background:var(--accent); color:#000; border:none; padding:9px 20px; border-radius:8px; font-family:inherit; font-size:13.5px; font-weight:600; cursor:pointer; }
+    .btn-primary:hover { opacity:.85; }
+    .btn-ghost { background:none; color:var(--muted); border:1px solid var(--border); padding:9px 20px; border-radius:8px; font-family:inherit; font-size:13.5px; cursor:pointer; }
+    .btn-ghost:hover { color:var(--text); background:var(--surface2); }
+
+    /* Calculator */
+    .calc-container { max-width:760px; margin:0 auto; padding:28px 24px; width:100%; }
+    .section-header { margin-bottom:24px; }
+    .section-header h2 { font-size:20px; font-weight:700; margin-bottom:4px; }
+    .section-header p { color:var(--muted); font-size:13.5px; }
+    .calc-rate-row { display:flex; align-items:center; gap:14px; margin-bottom:20px; }
+    .calc-rate-row label { font-size:13px; color:var(--muted); }
+    .calc-rate-row input { background:var(--surface); border:1px solid var(--border); border-radius:7px; padding:7px 12px; color:var(--text); font-family:inherit; font-size:13.5px; width:100px; outline:none; }
+    .calc-rate-row input:focus { border-color:var(--accent); }
+    .appliance-list { display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
+    .appliance-row { display:grid; grid-template-columns:1fr 110px 110px auto; gap:10px; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 14px; align-items:center; }
+    .appliance-row input { background:var(--surface2); border:1px solid var(--border); border-radius:7px; padding:7px 10px; color:var(--text); font-family:inherit; font-size:13px; outline:none; width:100%; }
+    .appliance-row input:focus { border-color:var(--accent2); }
+    .appliance-row input::placeholder { color:var(--muted); }
+    .remove-btn { width:28px; height:28px; background:none; border:none; cursor:pointer; color:var(--muted); border-radius:6px; display:flex; align-items:center; justify-content:center; }
+    .remove-btn:hover { background:rgba(239,68,68,.1); color:var(--red); }
+    .btn-add { display:flex; align-items:center; gap:8px; padding:9px 18px; background:none; border:1px dashed var(--border); border-radius:9px; color:var(--muted); cursor:pointer; font-family:inherit; font-size:13px; transition:all .15s; margin-bottom:24px; }
+    .btn-add:hover { border-color:var(--accent2); color:var(--accent2); }
+    .calc-results { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; }
+    .calc-results h3 { font-size:15px; font-weight:600; margin-bottom:16px; }
+    .results-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:20px; }
+    .result-card { background:var(--surface2); border:1px solid var(--border); border-radius:9px; padding:14px 16px; display:flex; flex-direction:column; gap:4px; }
+    .result-card.accent { border-color:rgba(245,158,11,.4); background:rgba(245,158,11,.06); }
+    .result-card.green { border-color:rgba(16,185,129,.4); background:rgba(16,185,129,.06); }
+    .result-label { font-size:11.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+    .result-value { font-size:22px; font-weight:700; }
+    .result-card.accent .result-value { color:var(--accent); }
+    .result-card.green .result-value { color:var(--green); }
+    .breakdown-table { width:100%; border-collapse:collapse; font-size:12.5px; margin-bottom:16px; }
+    .breakdown-table th { text-align:left; color:var(--muted); font-weight:500; padding:6px 8px; border-bottom:1px solid var(--border); }
+    .breakdown-table td { padding:8px 8px; border-bottom:1px solid rgba(46,51,71,.5); }
+    .breakdown-table tr:last-child td { border-bottom:none; }
+    .btn-ask-agent { display:flex; align-items:center; gap:8px; padding:9px 18px; background:rgba(245,158,11,.1); border:1px solid rgba(245,158,11,.35); border-radius:9px; color:var(--accent); cursor:pointer; font-family:inherit; font-size:13px; font-weight:500; transition:all .15s; }
+    .btn-ask-agent:hover { background:rgba(245,158,11,.18); }
+
+    /* Tips */
+    .tips-container { max-width:760px; margin:0 auto; padding:28px 24px; }
+    .btn-refresh { display:flex; align-items:center; gap:8px; padding:9px 18px; background:rgba(59,130,246,.1); border:1px solid rgba(59,130,246,.35); border-radius:9px; color:var(--accent2); cursor:pointer; font-family:inherit; font-size:13px; font-weight:500; margin-bottom:24px; transition:all .15s; }
+    .btn-refresh:hover { background:rgba(59,130,246,.18); }
+    .btn-refresh:disabled { opacity:.5; cursor:not-allowed; }
+    .btn-refresh svg { transition:transform .5s; }
+    .btn-refresh.loading svg { animation:spin .8s linear infinite; }
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .tips-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px; }
+    .tips-placeholder { grid-column:1/-1; text-align:center; padding:48px 0; display:flex; flex-direction:column; align-items:center; gap:12px; }
+    .tips-placeholder p { color:var(--muted); }
+    .tip-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 18px; display:flex; flex-direction:column; gap:8px; transition:border-color .15s; }
+    .tip-card:hover { border-color:var(--accent2); }
+    .tip-category { font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; padding:2px 8px; border-radius:12px; align-self:flex-start; }
+    .cat-heating{background:rgba(239,68,68,.12);color:#f87171} .cat-cooling{background:rgba(59,130,246,.12);color:#60a5fa}
+    .cat-lighting{background:rgba(245,158,11,.12);color:#fbbf24} .cat-appliances{background:rgba(139,92,246,.12);color:#a78bfa}
+    .cat-standby{background:rgba(107,114,128,.12);color:#9ca3af} .cat-habits{background:rgba(16,185,129,.12);color:#34d399}
+    .tip-text { font-size:13.5px; line-height:1.55; }
+    .tip-savings { font-size:12px; color:var(--green); font-weight:500; }
+
+    /* Stats */
+    .stats-container { max-width:760px; margin:0 auto; padding:28px 24px; }
+    .stats-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(168px,1fr)); gap:14px; margin-bottom:32px; }
+    .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 16px; display:flex; align-items:center; gap:14px; }
+    .stat-icon { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .stat-icon.blue{background:rgba(59,130,246,.12);color:var(--accent2)} .stat-icon.amber{background:rgba(245,158,11,.12);color:var(--accent)}
+    .stat-icon.green{background:rgba(16,185,129,.12);color:var(--green)} .stat-icon.purple{background:rgba(139,92,246,.12);color:var(--purple)}
+    .stat-info { display:flex; flex-direction:column; }
+    .stat-value { font-size:18px; font-weight:700; } .stat-label { font-size:11.5px; color:var(--muted); }
+    .breakdown-section, .savings-potential { margin-bottom:32px; }
+    .breakdown-section h3, .savings-potential h3 { font-size:15px; font-weight:600; margin-bottom:16px; }
+    .breakdown-bars { display:flex; flex-direction:column; gap:12px; }
+    .bar-row { display:flex; align-items:center; gap:12px; }
+    .bar-label { width:140px; font-size:12.5px; color:var(--muted); flex-shrink:0; }
+    .bar-track { flex:1; height:8px; background:var(--surface); border-radius:4px; overflow:hidden; }
+    .bar-fill { height:100%; border-radius:4px; }
+    .bar-pct { width:36px; text-align:right; font-size:12.5px; font-weight:600; }
+    .action-list { display:flex; flex-direction:column; gap:12px; }
+    .action-item { display:flex; align-items:center; gap:12px; background:var(--surface); border:1px solid var(--border); border-radius:9px; padding:12px 16px; font-size:13px; }
+    .action-bar { height:8px; border-radius:4px; background:linear-gradient(90deg,var(--green),var(--accent2)); flex-shrink:0; }
+    .action-item span { flex:1; color:var(--muted); } .action-item strong { color:var(--green); font-size:12.5px; }
+
+    .hidden { display:none !important; }
+    @media(max-width:680px){
+      .sidebar{transform:translateX(-100%)} .sidebar.open{transform:translateX(0)}
+      .main-wrapper{margin-left:0} .hamburger{display:flex}
+      .appliance-row{grid-template-columns:1fr 90px auto}
+    }
+  </style>
+</head>
+<body>
+
+<!-- API Key Modal -->
+<div class="modal-overlay" id="apiModal">
+  <div class="modal">
+    <h2>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      WattWise Setup
+    </h2>
+    <p>Enter your <strong>Groq API key</strong> to activate the AI agent. It will be stored in your browser's localStorage only.</p>
+    <input type="password" id="apiKeyInput" placeholder="gsk_…" autocomplete="off" />
+    <div class="modal-actions">
+      <button class="btn-ghost" id="skipApiKey">Use demo mode</button>
+      <button class="btn-primary" id="saveApiKey">Save & Continue</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="logo">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      <span>WattWise</span>
+    </div>
+    <button class="sidebar-toggle" id="sidebarClose">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <nav class="sidebar-nav">
+    <button class="nav-item active" data-tab="chat">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>AI Chat</span>
+    </button>
+    <button class="nav-item" data-tab="calculator">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/></svg><span>Calculator</span>
+    </button>
+    <button class="nav-item" data-tab="tips">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>Saving Tips</span>
+    </button>
+    <button class="nav-item" data-tab="stats">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>Stats</span>
+    </button>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="eco-badge">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <span>Carbon Aware Mode</span>
+    </div>
+  </div>
+</aside>
+
+<!-- Main -->
+<div class="main-wrapper">
+  <header class="topbar">
+    <button class="hamburger" id="sidebarOpen">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <div class="topbar-title">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      <span id="pageTitle">AI Chat</span>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn-icon" id="clearChat" title="Clear conversation">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+      </button>
+      <button class="btn-icon" id="changeKey" title="Change API key">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="content">
+
+    <!-- CHAT -->
+    <section class="tab-panel active" id="panel-chat">
+      <div class="chat-container">
+        <div class="chat-messages" id="chatMessages">
+          <div class="message agent">
+            <div class="avatar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+            <div class="bubble">
+              <p>⚡ Hi! I'm <strong>WattWise</strong>, your AI Electricity Consumption Awareness Agent.</p>
+              <p>I can help you:</p>
+              <ul>
+                <li>Analyse your electricity usage and estimate bills</li>
+                <li>Find energy-saving opportunities in your home</li>
+                <li>Calculate appliance running costs</li>
+                <li>Understand your carbon footprint</li>
+                <li>Suggest smart energy upgrades</li>
+              </ul>
+              <p>Try asking: <em>"How much does my AC cost to run for 8 hours a day?"</em></p>
+            </div>
+          </div>
+        </div>
+        <div class="suggestions" id="suggestions">
+          <button class="chip" data-prompt="What are the top 5 appliances that consume the most electricity?">Top energy hogs 🔌</button>
+          <button class="chip" data-prompt="How do I reduce my electricity bill by 20%?">Reduce bill 20% 💰</button>
+          <button class="chip" data-prompt="Explain time-of-use electricity pricing and how I can benefit from it">Time-of-use pricing ⏰</button>
+          <button class="chip" data-prompt="Is solar energy worth it for a typical home?">Solar ROI ☀️</button>
+          <button class="chip" data-prompt="What is the carbon footprint of my electricity usage if I use 500 kWh per month?">Carbon footprint 🌱</button>
+        </div>
+        <div class="chat-input-bar">
+          <textarea id="chatInput" placeholder="Ask WattWise anything about electricity…" rows="1"></textarea>
+          <button id="sendBtn" class="send-btn" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CALCULATOR -->
+    <section class="tab-panel" id="panel-calculator">
+      <div class="calc-container">
+        <div class="section-header">
+          <h2>Electricity Cost Calculator</h2>
+          <p>Add your appliances to estimate monthly electricity costs</p>
+        </div>
+        <div class="calc-rate-row">
+          <label>Electricity Rate ($/kWh)</label>
+          <input type="number" id="rateInput" value="0.13" step="0.01" min="0.01" max="1" />
+        </div>
+        <div class="appliance-list" id="applianceList"></div>
+        <button class="btn-add" id="addAppliance">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Appliance
+        </button>
+        <div class="calc-results hidden" id="calcResults">
+          <h3>Monthly Summary</h3>
+          <div class="results-grid">
+            <div class="result-card"><span class="result-label">Total kWh / month</span><span class="result-value" id="resKwh">—</span></div>
+            <div class="result-card accent"><span class="result-label">Monthly Cost</span><span class="result-value" id="resCost">—</span></div>
+            <div class="result-card"><span class="result-label">Annual Cost</span><span class="result-value" id="resYear">—</span></div>
+            <div class="result-card green"><span class="result-label">CO₂ / month (kg)</span><span class="result-value" id="resCo2">—</span></div>
+          </div>
+          <div id="applianceBreakdown"></div>
+          <button class="btn-ask-agent" id="askAgentBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Ask WattWise to analyse this
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- TIPS -->
+    <section class="tab-panel" id="panel-tips">
+      <div class="tips-container">
+        <div class="section-header">
+          <h2>Energy Saving Tips</h2>
+          <p>AI-generated tips to help you reduce consumption today</p>
+        </div>
+        <button class="btn-refresh" id="refreshTips">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Generate New Tips
+        </button>
+        <div class="tips-grid" id="tipsGrid">
+          <div class="tips-placeholder">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <p>Click "Generate New Tips" to get AI-powered saving tips</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STATS -->
+    <section class="tab-panel" id="panel-stats">
+      <div class="stats-container">
+        <div class="section-header"><h2>Global Electricity Stats</h2><p>Average consumption benchmarks to compare against your usage</p></div>
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-icon blue"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div><div class="stat-info"><span class="stat-value">877 kWh</span><span class="stat-label">US avg. household/month</span></div></div>
+          <div class="stat-card"><div class="stat-icon amber"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg></div><div class="stat-info"><span class="stat-value">$0.13</span><span class="stat-label">US avg. rate per kWh</span></div></div>
+          <div class="stat-card"><div class="stat-icon green"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div><div class="stat-info"><span class="stat-value">0.386 kg</span><span class="stat-label">CO₂ per kWh (US avg)</span></div></div>
+          <div class="stat-card"><div class="stat-icon purple"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></div><div class="stat-info"><span class="stat-value">24,000 TWh</span><span class="stat-label">Global consumption/year</span></div></div>
+        </div>
+        <div class="breakdown-section">
+          <h3>Typical Home Energy Breakdown</h3>
+          <div class="breakdown-bars">
+            <div class="bar-row"><span class="bar-label">Heating &amp; Cooling</span><div class="bar-track"><div class="bar-fill" style="width:47%;background:#f59e0b"></div></div><span class="bar-pct">47%</span></div>
+            <div class="bar-row"><span class="bar-label">Water Heater</span><div class="bar-track"><div class="bar-fill" style="width:14%;background:#3b82f6"></div></div><span class="bar-pct">14%</span></div>
+            <div class="bar-row"><span class="bar-label">Washer &amp; Dryer</span><div class="bar-track"><div class="bar-fill" style="width:13%;background:#8b5cf6"></div></div><span class="bar-pct">13%</span></div>
+            <div class="bar-row"><span class="bar-label">Lighting</span><div class="bar-track"><div class="bar-fill" style="width:12%;background:#10b981"></div></div><span class="bar-pct">12%</span></div>
+            <div class="bar-row"><span class="bar-label">Refrigerator</span><div class="bar-track"><div class="bar-fill" style="width:8%;background:#ef4444"></div></div><span class="bar-pct">8%</span></div>
+            <div class="bar-row"><span class="bar-label">Other</span><div class="bar-track"><div class="bar-fill" style="width:6%;background:#6b7280"></div></div><span class="bar-pct">6%</span></div>
+          </div>
+        </div>
+        <div class="savings-potential">
+          <h3>Savings Potential by Action</h3>
+          <div class="action-list">
+            <div class="action-item"><div class="action-bar" style="width:30px"></div><span>LED lighting switch</span><strong>up to 75% on lighting</strong></div>
+            <div class="action-item"><div class="action-bar" style="width:25px"></div><span>Smart thermostat</span><strong>10–12% heating, 15% cooling</strong></div>
+            <div class="action-item"><div class="action-bar" style="width:20px"></div><span>Seal air leaks</span><strong>up to 20% on HVAC</strong></div>
+            <div class="action-item"><div class="action-bar" style="width:15px"></div><span>Energy-efficient appliances</span><strong>10–50% per appliance</strong></div>
+            <div class="action-item"><div class="action-bar" style="width:10px"></div><span>Unplug standby devices</span><strong>5–10% overall</strong></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+// ─── Config ───────────────────────────────
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+const MODEL = "openai/gpt-oss-safeguard-20b";
+const STORAGE_KEY = "wattwise_api_key";
+
+const SYSTEM_PROMPT = `You are an expert Electricity Consumption Awareness Agent named "WattWise".
+Your mission is to help users understand, monitor, and reduce their electricity consumption to save money and help the environment.
+You are knowledgeable about appliance energy usage, bill estimation, energy-saving tips, renewable energy, carbon footprint, smart home solutions, peak hours, energy audits, government incentives, and global electricity statistics.
+When users share their appliance usage or ask for calculations, always provide specific kWh calculations when possible, estimate monthly costs using average electricity rate of $0.13/kWh, give actionable recommendations, and use clear formatting.
+Always respond in a helpful, clear, and encouraging manner.`;
+
+// ─── State ────────────────────────────────
+let apiKey = localStorage.getItem(STORAGE_KEY) || "";
+let history = [];
+
+// ─── API Key Modal ─────────────────────────
+const apiModal = document.getElementById("apiModal");
+const apiKeyInput = document.getElementById("apiKeyInput");
+const saveApiKeyBtn = document.getElementById("saveApiKey");
+const skipApiKeyBtn = document.getElementById("skipApiKey");
+const changeKeyBtn = document.getElementById("changeKey");
+
+if (!apiKey) { apiModal.classList.remove("hidden"); } else { apiModal.classList.add("hidden"); }
+
+saveApiKeyBtn.addEventListener("click", () => {
+  const val = apiKeyInput.value.trim();
+  if (!val) { apiKeyInput.style.borderColor = "var(--red)"; return; }
+  apiKey = val;
+  localStorage.setItem(STORAGE_KEY, val);
+  apiModal.classList.add("hidden");
+});
+skipApiKeyBtn.addEventListener("click", () => { apiModal.classList.add("hidden"); });
+changeKeyBtn.addEventListener("click", () => {
+  apiKeyInput.value = apiKey;
+  apiModal.classList.remove("hidden");
+});
+apiKeyInput.addEventListener("keydown", (e) => { if (e.key === "Enter") saveApiKeyBtn.click(); });
+
+// ─── Sidebar ──────────────────────────────
+document.getElementById("sidebarOpen").addEventListener("click", () => document.getElementById("sidebar").classList.add("open"));
+document.getElementById("sidebarClose").addEventListener("click", () => document.getElementById("sidebar").classList.remove("open"));
+
+const TITLES = { chat:"AI Chat", calculator:"Calculator", tips:"Saving Tips", stats:"Stats" };
+document.querySelectorAll(".nav-item").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const tab = btn.dataset.tab;
+    document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+    document.getElementById("panel-" + tab).classList.add("active");
+    document.getElementById("pageTitle").textContent = TITLES[tab];
+    document.getElementById("sidebar").classList.remove("open");
+  });
+});
+
+// ─── Clear chat ───────────────────────────
+document.getElementById("clearChat").addEventListener("click", () => {
+  const msgs = chatMessages.querySelectorAll(".message");
+  msgs.forEach((m, i) => { if (i > 0) m.remove(); });
+  history = [];
+  document.getElementById("suggestions").style.display = "";
+});
+
+// ─── Chat input ───────────────────────────
+const chatMessages = document.getElementById("chatMessages");
+const chatInput = document.getElementById("chatInput");
+const sendBtn = document.getElementById("sendBtn");
+
+chatInput.addEventListener("input", () => {
+  chatInput.style.height = "auto";
+  chatInput.style.height = Math.min(chatInput.scrollHeight, 140) + "px";
+  sendBtn.disabled = chatInput.value.trim() === "";
+});
+chatInput.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+sendBtn.addEventListener("click", sendMessage);
+
+document.querySelectorAll(".chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    chatInput.value = chip.dataset.prompt;
+    chatInput.dispatchEvent(new Event("input"));
+    sendMessage();
+  });
+});
+
+// ─── Chat engine ──────────────────────────
+function appendMessage(role, content) {
+  const isAgent = role === "agent";
+  const wrap = document.createElement("div");
+  wrap.className = "message " + role;
+  const avatar = document.createElement("div");
+  avatar.className = "avatar";
+  avatar.innerHTML = isAgent
+    ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`
+    : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+  bubble.innerHTML = renderMarkdown(content);
+  wrap.appendChild(avatar);
+  wrap.appendChild(bubble);
+  chatMessages.appendChild(wrap);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  return wrap;
+}
+
+function appendTyping() {
+  const wrap = document.createElement("div");
+  wrap.className = "message agent";
+  wrap.id = "typing-ww";
+  const avatar = document.createElement("div");
+  avatar.className = "avatar";
+  avatar.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+  const bubble = document.createElement("div");
+  bubble.className = "bubble";
+  bubble.innerHTML = `<div class="typing-indicator"><span></span><span></span><span></span></div>`;
+  wrap.appendChild(avatar);
+  wrap.appendChild(bubble);
+  chatMessages.appendChild(wrap);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  return wrap;
+}
+
+async function sendMessage() {
+  const text = chatInput.value.trim();
+  if (!text) return;
+  if (!apiKey) { apiModal.classList.remove("hidden"); return; }
+  chatInput.value = "";
+  chatInput.style.height = "auto";
+  sendBtn.disabled = true;
+  document.getElementById("suggestions").style.display = "none";
+  appendMessage("user", text);
+  history.push({ role: "user", content: text });
+  const typingEl = appendTyping();
+  try {
+    const res = await fetch(GROQ_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [{ role: "system", content: SYSTEM_PROMPT }, ...history],
+        temperature: 0.7,
+        max_tokens: 1024,
+      }),
+    });
+    const data = await res.json();
+    typingEl.remove();
+    if (data.error) {
+      appendMessage("agent", "⚠️ API Error: " + (data.error.message || JSON.stringify(data.error)));
+    } else {
+      const reply = data.choices[0].message.content;
+      history.push({ role: "assistant", content: reply });
+      if (history.length > 20) history = history.slice(-20);
+      appendMessage("agent", reply);
+    }
+  } catch (err) {
+    typingEl.remove();
+    appendMessage("agent", "⚠️ Network error: " + err.message);
+  }
+}
+
+// ─── Markdown renderer ────────────────────
+function renderMarkdown(text) {
+  if (!text) return "";
+  let h = text
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/```[\w]*\n?([\s\S]*?)```/g,(_,c)=>`<pre><code>${c.trim()}</code></pre>`)
+    .replace(/`([^`]+)`/g,"<code>$1</code>")
+    .replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g,"<em>$1</em>")
+    .replace(/^### (.+)$/gm,"<h3>$1</h3>")
+    .replace(/^## (.+)$/gm,"<h2>$1</h2>")
+    .replace(/^# (.+)$/gm,"<h1>$1</h1>")
+    .replace(/^\s*[-*•] (.+)$/gm,"<li>$1</li>")
+    .replace(/^\s*\d+\. (.+)$/gm,"<li>$1</li>")
+    .replace(/(<li>[\s\S]+?<\/li>)(?=\s*(?!<li>))/g,"<ul>$&</ul>")
+    .replace(/\n\n+/g,"</p><p>")
+    .replace(/\n/g,"<br/>");
+  return "<p>" + h + "</p>";
+}
+
+// ─── Calculator ───────────────────────────
+const DEFAULT_APPLIANCES = [
+  { name: "Air Conditioner", watts: 1500, hoursPerDay: 8 },
+  { name: "Refrigerator", watts: 150, hoursPerDay: 24 },
+  { name: "LED Lighting (5 bulbs)", watts: 50, hoursPerDay: 6 },
+];
+const applianceList = document.getElementById("applianceList");
+const calcResults = document.getElementById("calcResults");
+
+function createRow(data = {}) {
+  const row = document.createElement("div");
+  row.className = "appliance-row";
+  row.innerHTML = `
+    <input type="text" placeholder="Appliance name" value="${data.name||""}" class="ni" />
+    <input type="number" placeholder="Watts" value="${data.watts||""}" class="wi" min="1" step="1" />
+    <input type="number" placeholder="Hrs/day" value="${data.hoursPerDay||""}" class="hi" min="0" max="24" step="0.5" />
+    <button class="remove-btn" title="Remove">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>`;
+  row.querySelector(".remove-btn").addEventListener("click", () => { row.remove(); recalculate(); });
+  row.querySelectorAll("input").forEach(i => i.addEventListener("input", recalculate));
+  return row;
+}
+DEFAULT_APPLIANCES.forEach(a => applianceList.appendChild(createRow(a)));
+document.getElementById("addAppliance").addEventListener("click", () => {
+  const r = createRow(); applianceList.appendChild(r); r.querySelector(".ni").focus();
+});
+
+function recalculate() {
+  const rate = parseFloat(document.getElementById("rateInput").value) || 0.13;
+  const rows = applianceList.querySelectorAll(".appliance-row");
+  const items = [];
+  rows.forEach(r => {
+    const name = r.querySelector(".ni").value.trim() || "Unnamed";
+    const watts = parseFloat(r.querySelector(".wi").value) || 0;
+    const hrs = parseFloat(r.querySelector(".hi").value) || 0;
+    if (watts > 0 && hrs > 0) items.push({ name, watts, hrs });
+  });
+  if (!items.length) { calcResults.classList.add("hidden"); return; }
+  let total = 0;
+  const res = items.map(a => {
+    const mo = (a.watts * a.hrs / 1000) * 30;
+    total += mo;
+    return { ...a, mo: mo.toFixed(2), cost: (mo * rate).toFixed(2) };
+  });
+  document.getElementById("resKwh").textContent = total.toFixed(1) + " kWh";
+  document.getElementById("resCost").textContent = "$" + (total * rate).toFixed(2);
+  document.getElementById("resYear").textContent = "$" + (total * rate * 12).toFixed(2);
+  document.getElementById("resCo2").textContent = (total * 0.386).toFixed(2) + " kg";
+  document.getElementById("applianceBreakdown").innerHTML = `<table class="breakdown-table">
+    <thead><tr><th>Appliance</th><th>Watts</th><th>kWh/mo</th><th>Cost/mo</th></tr></thead>
+    <tbody>${res.map(r=>`<tr><td>${r.name}</td><td>${r.watts}W</td><td>${r.mo}</td><td>$${r.cost}</td></tr>`).join("")}</tbody>
+  </table>`;
+  calcResults.classList.remove("hidden");
+  calcResults.dataset.summary = JSON.stringify({ items: res, total: total.toFixed(1), cost: (total*rate).toFixed(2), year: (total*rate*12).toFixed(2), co2: (total*0.386).toFixed(2) });
+}
+document.getElementById("rateInput").addEventListener("input", recalculate);
+recalculate();
+
+document.getElementById("askAgentBtn").addEventListener("click", () => {
+  const d = JSON.parse(calcResults.dataset.summary || "{}");
+  if (!d.items) return;
+  const lines = d.items.map(a => `- ${a.name}: ${a.watts}W × ${a.hrs}h/day → $${a.cost}/month`).join("\n");
+  const msg = `Here is my monthly electricity usage:\n${lines}\n\nTotal: ${d.total} kWh/month, $${d.cost}/month, $${d.year}/year, ${d.co2} kg CO₂.\n\nPlease analyse this and give me specific actionable advice to reduce my consumption and costs.`;
+  document.querySelector('[data-tab="chat"]').click();
+  chatInput.value = msg;
+  chatInput.dispatchEvent(new Event("input"));
+  setTimeout(sendMessage, 100);
+});
+
+// ─── Tips ─────────────────────────────────
+const tipsGrid = document.getElementById("tipsGrid");
+const refreshTipsBtn = document.getElementById("refreshTips");
+const CAT_CLASS = { heating:"cat-heating", cooling:"cat-cooling", lighting:"cat-lighting", appliances:"cat-appliances", standby:"cat-standby", habits:"cat-habits" };
+
+refreshTipsBtn.addEventListener("click", async () => {
+  if (!apiKey) { apiModal.classList.remove("hidden"); return; }
+  refreshTipsBtn.disabled = true;
+  refreshTipsBtn.classList.add("loading");
+  tipsGrid.innerHTML = `<div class="tips-placeholder"><p>Generating tips…</p></div>`;
+  try {
+    const res = await fetch(GROQ_API_URL, {
+      method: "POST",
+      headers: { "Content-Type":"application/json", "Authorization":"Bearer " + apiKey },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: "Give me 5 quick actionable electricity saving tips. Format as a JSON array with fields: id, tip, savings, category. Categories: heating/cooling/lighting/appliances/standby/habits. savings = short string like 'saves ~10%'. Return ONLY valid JSON array." }
+        ],
+        temperature: 0.5, max_tokens: 512,
+      }),
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const raw = data.choices[0].message.content;
+    const match = raw.match(/\[[\s\S]*\]/);
+    if (!match) throw new Error("No JSON found");
+    const tips = JSON.parse(match[0]);
+    tipsGrid.innerHTML = "";
+    tips.forEach(tip => {
+      const cat = (tip.category || "habits").toLowerCase();
+      const catClass = CAT_CLASS[cat] || "cat-habits";
+      const card = document.createElement("div");
+      card.className = "tip-card";
+      card.innerHTML = `
+        <span class="tip-category ${catClass}">${cat.charAt(0).toUpperCase()+cat.slice(1)}</span>
+        <p class="tip-text">${esc(tip.tip)}</p>
+        <span class="tip-savings">💰 ${esc(tip.savings||"")}</span>`;
+      tipsGrid.appendChild(card);
+    });
+  } catch(err) {
+    tipsGrid.innerHTML = `<div class="tips-placeholder"><p>Error: ${esc(err.message)}. Check your API key.</p></div>`;
+  } finally {
+    refreshTipsBtn.disabled = false;
+    refreshTipsBtn.classList.remove("loading");
+  }
+});
+
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+</script>
+</body>
+</html>
